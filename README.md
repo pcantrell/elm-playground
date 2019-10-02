@@ -1,4 +1,4 @@
-# Elm Playground
+# Elm Playground (miniBill's fork of [`evancz/elm-playground`](https://package.elm-lang.org/packages/evancz/elm-playground))
 
 Create pictures, animations, and games with Elm!
 
@@ -41,7 +41,7 @@ view time =
 
 It will do a full spin every 8 seconds.
 
-Maybe try making a car with spinning octogons as wheels? Try using [`wave`](https://package.elm-lang.org/packages/evancz/elm-playground/latest/Playground#wave) to move things back-and-forth? Try using [`zigzag`](https://package.elm-lang.org/packages/evancz/elm-playground/latest/Playground#zigzag) to fade things in-and-out?
+Maybe try making a car with spinning octogons as wheels? Try using [`wave`](https://package.elm-lang.org/packages/miniBill/elm-playground/latest/Playground#wave) to move things back-and-forth? Try using [`zigzag`](https://package.elm-lang.org/packages/miniBill/elm-playground/latest/Playground#zigzag) to fade things in-and-out?
 
 
 ## Games
