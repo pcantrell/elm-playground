@@ -14,11 +14,14 @@ module Playground exposing
     , white, lightGrey, grey, darkGrey, lightCharcoal, charcoal, darkCharcoal, black
     , lightGray, gray, darkGray
     , Number
-    --
-    --
-    --
-    --
-    --
+    , application
+    ,  UserMsg(..)
+       --
+       --
+       --
+       --
+       --
+
     )
 
 {-|
@@ -97,6 +100,11 @@ module Playground exposing
 ### Numbers
 
 @docs Number
+
+
+### Interacting with the outside world
+
+@docs application, Msg
 
 -}
 
@@ -904,6 +912,170 @@ updateKeyboard isDown key keyboard =
 
         _ ->
             { keyboard | keys = keys }
+
+
+
+-- APPLICATION
+
+
+{-| Create a game that can talk to the outside world!
+
+Once you get comfortable with [`game`](#game), you may want to talk to the outside world.
+Maybe you want to have save files? Or play some audio?
+In the future you might want to talk to a server to have a scoreboard!
+
+`application` lets you use all the libraries in the Elm ecosystem (and more),
+by expanding the type of the `update` function, by allowing you to provide
+your own events, via `subscriptions`.
+
+You should take some time to walk through the [Elm Guide](https://guide.elm-lang.org/) first,
+to get yourself acquanted with Commands and Subscriptions.
+
+As you progress through it, you will find the familiar `update` and `view` functions,
+although the latter will produce `Html`, they work exactly the same way as in `elm-playground`!
+`memory` is called a Model there, but it serves the same purpose.
+
+The `update` function now takes another argument: the message that is coming from the outside world
+to your game. It can be either a `Frame` (usually around `16` times per second),
+or an `UserMsg` with your custom message. If you don't need a message you can ignore the argument.
+
+The `update` function also produces an additional result: a `Cmd`.
+Again, you should read the [Elm Guide](https://guide.elm-lang.org/) and get familiar with Commands.
+
+You may wonder if this could be expanded to accept flags, or to produce a `Cmd` on initialization.
+This is actually unnecessary. You can structure your `application` like this instead:
+
+    type FlagsAndInits
+        = WaitingFlags
+        | Running { ... }
+
+    type Msg =
+        | GotFlags Flags
+        | ...
+
+    update msg computer memory =
+        case msg of
+            UserMsg (GotFlags flags) ->
+                initWithFlagsAndCmd flags
+
+-}
+application :
+    (Computer -> memory -> List Shape)
+    -> (UserMsg msg -> Computer -> memory -> ( memory, Cmd msg ))
+    -> (memory -> Sub msg)
+    -> memory
+    -> Program () (Game memory) (ExternalMsg msg)
+application viewMemory updateMemory subMemory initialMemory =
+    let
+        init () =
+            ( Game E.Visible initialMemory initialComputer
+            , Cmd.map Internal <| Task.perform GotViewport Dom.getViewport
+            )
+
+        view (Game _ memory computer) =
+            { title = "Playground"
+            , body = [ render computer.screen (viewMemory computer memory) ]
+            }
+
+        update msg model =
+            applicationUpdate updateMemory msg model
+
+        subscriptions (Game visibility memory _) =
+            Sub.batch
+                [ Sub.map Internal <|
+                    case visibility of
+                        E.Hidden ->
+                            E.onVisibilityChange VisibilityChanged
+
+                        E.Visible ->
+                            gameSubscriptions
+                , Sub.map External <| subMemory memory
+                ]
+    in
+    Browser.document
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
+
+
+{-| This is the message that is passed to your [`application`](#application).
+
+A `Frame` comes approximately 16 times per second, whereas an `UserMsg` comes when needed,
+either as a result of a `Cmd` or from a `Sub`. Read the [Elm Guide](https://guide.elm-lang.org/)
+to find out more about those.
+
+-}
+type UserMsg msg
+    = Frame
+    | UserMsg msg
+
+
+type ExternalMsg msg
+    = Internal Msg
+    | External msg
+
+
+applicationUpdate : (UserMsg msg -> Computer -> memory -> ( memory, Cmd msg )) -> ExternalMsg msg -> Game memory -> ( Game memory, Cmd (ExternalMsg msg) )
+applicationUpdate updateMemory msg (Game vis memory computer) =
+    case msg of
+        External emsg ->
+            let
+                ( newMemory, cmd ) =
+                    updateMemory (UserMsg emsg) computer memory
+            in
+            ( Game vis newMemory computer, Cmd.map External cmd )
+
+        Internal (Tick time) ->
+            let
+                ( newMemory, cmd ) =
+                    updateMemory Frame computer memory
+
+                newGame =
+                    Game vis newMemory <|
+                        if computer.mouse.click then
+                            { computer | time = Time time, mouse = mouseClick False computer.mouse }
+
+                        else
+                            { computer | time = Time time }
+            in
+            ( newGame, Cmd.map External cmd )
+
+        Internal (GotViewport { viewport }) ->
+            ( Game vis memory { computer | screen = toScreen viewport.width viewport.height }, Cmd.none )
+
+        Internal (Resized w h) ->
+            ( Game vis memory { computer | screen = toScreen (toFloat w) (toFloat h) }, Cmd.none )
+
+        Internal (KeyChanged isDown key) ->
+            ( Game vis memory { computer | keyboard = updateKeyboard isDown key computer.keyboard }, Cmd.none )
+
+        Internal (MouseMove pageX pageY) ->
+            let
+                x =
+                    computer.screen.left + pageX
+
+                y =
+                    computer.screen.top - pageY
+            in
+            ( Game vis memory { computer | mouse = mouseMove x y computer.mouse }, Cmd.none )
+
+        Internal MouseClick ->
+            ( Game vis memory { computer | mouse = mouseClick True computer.mouse }, Cmd.none )
+
+        Internal (MouseButton isDown) ->
+            ( Game vis memory { computer | mouse = mouseDown isDown computer.mouse }, Cmd.none )
+
+        Internal (VisibilityChanged visibility) ->
+            ( Game visibility
+                memory
+                { computer
+                    | keyboard = emptyKeyboard
+                    , mouse = Mouse computer.mouse.x computer.mouse.y False False
+                }
+            , Cmd.none
+            )
 
 
 
