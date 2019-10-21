@@ -16,6 +16,8 @@ module Playground exposing
     , Number
     , application
     ,  UserMsg(..)
+    , extractPosix
+    , makePlaygroundTime
        --
        --
        --
@@ -457,6 +459,9 @@ Helpful when making an [`animation`](#animation) with functions like
 type Time
     = Time Time.Posix
 
+extractPosix (Time t) = t
+
+makePlaygroundTime t = Time t
 
 {-| Create an angle that cycles from 0 to 360 degrees over time.
 
