@@ -968,12 +968,12 @@ application :
     (Computer -> memory -> List Shape)
     -> (UserMsg msg -> Computer -> memory -> ( memory, Cmd msg ))
     -> (memory -> Sub msg)
-    -> memory
-    -> Program () (Game memory) (ExternalMsg msg)
+    -> (flags -> memory)
+    -> Program flags (Game memory) (ExternalMsg msg)
 application viewMemory updateMemory subMemory initialMemory =
     let
-        init () =
-            ( Game E.Visible initialMemory initialComputer
+        init flags =
+            ( Game E.Visible (initialMemory flags) initialComputer
             , Cmd.map Internal <| Task.perform GotViewport Dom.getViewport
             )
 
